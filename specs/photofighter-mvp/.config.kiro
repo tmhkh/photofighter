@@ -1,0 +1,3 @@
+version: "1.0"
+name: "photofighter-mvp"
+description: "写真からキャラクターを生成して戦う1対1格闘ゲームのMVP"
