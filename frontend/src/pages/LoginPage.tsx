@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { authService } from "../services/api";
+import { useNavigate, Link } from "react-router-dom";
+import { signIn } from "../services/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -14,10 +14,10 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await authService.login(email, password);
+      await signIn(email, password);
       navigate("/characters");
-    } catch {
-      setError("ログインに失敗しました");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ログインに失敗しました");
     } finally {
       setLoading(false);
     }
@@ -34,6 +34,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            aria-label="メールアドレス"
             style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
           />
         </div>
@@ -44,10 +45,11 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            aria-label="パスワード"
             style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
           />
         </div>
-        {error && <p style={{ color: "#ef5350", marginBottom: "16px" }}>{error}</p>}
+        {error && <p style={{ color: "#ef5350", marginBottom: "16px" }} role="alert">{error}</p>}
         <button
           type="submit"
           disabled={loading}
@@ -56,6 +58,9 @@ export default function LoginPage() {
           {loading ? "ログイン中..." : "ログイン"}
         </button>
       </form>
+      <p style={{ marginTop: "16px", textAlign: "center" }}>
+        <Link to="/register" style={{ color: "#4fc3f7" }}>アカウント作成</Link>
+      </p>
     </div>
   );
 }

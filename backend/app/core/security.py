@@ -1,43 +1,54 @@
-"""認証・セキュリティユーティリティ."""
+"""Cognito JWT トークン検証ユーティリティ."""
 
-from datetime import UTC, datetime, timedelta
+import json
+from functools import lru_cache
+from typing import Any
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+import jwt
+from jwt import PyJWKClient
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+@lru_cache(maxsize=1)
+def _get_jwk_client() -> PyJWKClient:
+    """Cognito JWKS エンドポイントの JWK クライアントを取得する."""
+    jwks_url = (
+        f"https://cognito-idp.{settings.aws_region}.amazonaws.com"
+        f"/{settings.cognito_user_pool_id}/.well-known/jwks.json"
+    )
+    return PyJWKClient(jwks_url)
 
 
-def hash_password(password: str) -> str:
-    """パスワードを bcrypt でハッシュ化する."""
-    return pwd_context.hash(password)
+def decode_cognito_token(token: str) -> dict[str, Any] | None:
+    """Cognito JWT トークンを検証・デコードする.
 
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """パスワードを検証する."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def create_access_token(subject: str) -> str:
-    """アクセストークンを生成する."""
-    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire, "type": "access"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-
-
-def create_refresh_token(subject: str) -> str:
-    """リフレッシュトークンを生成する."""
-    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
-    payload = {"sub": subject, "exp": expire, "type": "refresh"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-
-
-def decode_token(token: str) -> dict | None:
-    """トークンをデコードして検証する."""
+    Returns:
+        検証済みペイロード。無効な場合は None。
+    """
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        jwk_client = _get_jwk_client()
+        signing_key = jwk_client.get_signing_key_from_jwt(token)
+
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            issuer=(
+                f"https://cognito-idp.{settings.aws_region}.amazonaws.com"
+                f"/{settings.cognito_user_pool_id}"
+            ),
+            options={
+                "verify_aud": False,  # Cognito access token には aud がない
+                "verify_exp": True,
+            },
+        )
+
+        # client_id の検証（access token は client_id、id token は aud）
+        client_id = payload.get("client_id") or payload.get("aud")
+        if client_id != settings.cognito_client_id:
+            return None
+
         return payload
-    except JWTError:
+    except (jwt.InvalidTokenError, jwt.PyJWKClientError):
         return None

@@ -1,25 +1,13 @@
-"""認証リクエスト・レスポンススキーマ."""
+"""認証レスポンススキーマ.
 
-from pydantic import BaseModel, EmailStr, Field
+ユーザー登録・ログインは Cognito が処理するため、
+バックエンドではトークン検証結果のレスポンスのみ定義する。
+"""
 
-
-class RegisterRequest(BaseModel):
-    """ユーザー登録リクエスト."""
-
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=128, description="パスワード（8文字以上）")
+from pydantic import BaseModel
 
 
-class LoginRequest(BaseModel):
-    """ログインリクエスト."""
+class UserInfo(BaseModel):
+    """現在のユーザー情報."""
 
-    email: EmailStr
-    password: str
-
-
-class TokenResponse(BaseModel):
-    """トークンレスポンス."""
-
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+    user_id: str
