@@ -13,11 +13,9 @@ class Settings(BaseSettings):
     app_name: str = "PhotoFighter"
     debug: bool = False
 
-    # 認証
-    jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
-    refresh_token_expire_days: int = 7
+    # Cognito 認証
+    cognito_user_pool_id: str = "ap-northeast-1_VNCSv95Dm"
+    cognito_client_id: str = ""
 
     # AWS
     aws_region: str = "ap-northeast-1"
