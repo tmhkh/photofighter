@@ -3,7 +3,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.security import decode_token
+from app.core.security import decode_cognito_token
 
 security_scheme = HTTPBearer()
 
@@ -13,9 +13,9 @@ async def get_current_user_id(
 ) -> str:
     """現在のユーザーIDを取得する.
 
-    JWT トークンから user_id を抽出する。
+    Cognito JWT トークンから sub（ユーザーID）を抽出する。
     """
-    payload = decode_token(credentials.credentials)
+    payload = decode_cognito_token(credentials.credentials)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
