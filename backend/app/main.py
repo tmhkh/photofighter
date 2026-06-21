@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import auth, characters, game
 from app.core.config import settings
+from app.core.origin_verify import OriginVerifyMiddleware
 
 app = FastAPI(
     title="PhotoFighter API",
@@ -20,6 +21,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# CloudFront オリジン検証（CORS の後に追加 = リクエスト処理時に先に実行される）
+app.add_middleware(OriginVerifyMiddleware)
 
 # ルーター登録
 app.include_router(auth.router, prefix="/api/auth", tags=["認証"])
