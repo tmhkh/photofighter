@@ -23,14 +23,17 @@ class Settings(BaseSettings):
     dynamodb_table_characters: str = "photofighter-characters"
     s3_bucket_sprites: str = "photofighter-sprites"
 
-    # Bedrock
-    bedrock_model_id: str = "amazon.nova-canvas-v1:0"
+    # 非同期 Worker Lambda
+    worker_function_name: str = "photofighter-worker"
 
     # キャラクター生成制限
     monthly_generation_limit: int = 5
 
     # CORS
     allowed_origins: list[str] = ["http://localhost:5173"]
+
+    # CloudFront オリジン検証
+    origin_verify_header: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
