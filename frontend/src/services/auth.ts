@@ -2,13 +2,12 @@
  * Cognito 認証サービス
  *
  * amazon-cognito-identity-js を使い、
- * サインアップ / サインイン / トークン管理を行う。
+ * アカウント名（ユーザー名）でのサインイン / トークン管理を行う。
  */
 
 import {
   AuthenticationDetails,
   CognitoUser,
-  CognitoUserAttribute,
   CognitoUserPool,
   CognitoUserSession,
 } from "amazon-cognito-identity-js";
@@ -21,46 +20,16 @@ const userPool = new CognitoUserPool({
   ClientId: CLIENT_ID,
 });
 
-function getCognitoUser(email: string): CognitoUser {
-  return new CognitoUser({ Username: email, Pool: userPool });
+function getCognitoUser(username: string): CognitoUser {
+  return new CognitoUser({ Username: username, Pool: userPool });
 }
 
-/** サインアップ */
-export function signUp(email: string, password: string): Promise<void> {
+/** サインイン（アカウント名 + パスワード） */
+export function signIn(username: string, password: string): Promise<CognitoUserSession> {
   return new Promise((resolve, reject) => {
-    const attributes = [
-      new CognitoUserAttribute({ Name: "email", Value: email }),
-    ];
-    userPool.signUp(email, password, attributes, [], (err) => {
-      if (err) {
-        reject(new Error(err.message || "登録に失敗しました"));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-/** 確認コード検証 */
-export function confirmSignUp(email: string, code: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const user = getCognitoUser(email);
-    user.confirmRegistration(code, true, (err) => {
-      if (err) {
-        reject(new Error(err.message || "確認に失敗しました"));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-/** サインイン */
-export function signIn(email: string, password: string): Promise<CognitoUserSession> {
-  return new Promise((resolve, reject) => {
-    const user = getCognitoUser(email);
+    const user = getCognitoUser(username);
     const authDetails = new AuthenticationDetails({
-      Username: email,
+      Username: username,
       Password: password,
     });
     user.authenticateUser(authDetails, {
