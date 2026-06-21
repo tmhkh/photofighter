@@ -9,6 +9,8 @@ class CharacterResponse(BaseModel):
     character_id: str
     user_id: str
     name: str
-    sprite_url: str
-    style: str
+    sprite_url: str = ""
+    style: str = "fighter"
+    status: str = "processing"
+    error_message: str = ""
     created_at: str

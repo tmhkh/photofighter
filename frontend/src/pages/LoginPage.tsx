@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { signIn } from "../services/auth";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await signIn(email, password);
+      await signIn(username, password);
       navigate("/characters");
     } catch (err) {
       setError(err instanceof Error ? err.message : "ログインに失敗しました");
@@ -29,12 +29,13 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} style={{ marginTop: "24px" }}>
         <div style={{ marginBottom: "16px" }}>
           <input
-            type="email"
-            placeholder="メールアドレス"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="アカウント名"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             required
-            aria-label="メールアドレス"
+            autoComplete="username"
+            aria-label="アカウント名"
             style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
           />
         </div>
@@ -45,6 +46,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
             aria-label="パスワード"
             style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
           />
@@ -58,9 +60,6 @@ export default function LoginPage() {
           {loading ? "ログイン中..." : "ログイン"}
         </button>
       </form>
-      <p style={{ marginTop: "16px", textAlign: "center" }}>
-        <Link to="/register" style={{ color: "#4fc3f7" }}>アカウント作成</Link>
-      </p>
     </div>
   );
 }

@@ -75,6 +75,12 @@ export class PhotoFighterStack extends cdk.Stack {
           expiration: cdk.Duration.days(90),
           enabled: true,
         },
+        {
+          id: "delete-temp-uploads",
+          prefix: "uploads/",
+          expiration: cdk.Duration.days(1),
+          enabled: true,
+        },
       ],
     });
     cdk.Tags.of(spritesBucket).add("name", "photofighter-sprites");
@@ -89,12 +95,42 @@ export class PhotoFighterStack extends cdk.Stack {
     });
     cdk.Tags.of(frontendBucket).add("name", "photofighter-frontend");
 
+    // CloudFront → Lambda オリジン検証用シークレット
+    const originVerifySecret = "pf-origin-" + this.account + "-x7k9m2";
+
+    // 共有 Docker イメージ（API / Worker で同一イメージを利用）
+    const backendImage = lambda.DockerImageCode.fromImageAsset("../backend");
+    const workerImage = lambda.DockerImageCode.fromImageAsset("../backend", {
+      cmd: ["handler_worker.handler"],
+    });
+
+    // Worker Lambda（非同期キャラクター生成）
+    const workerFunction = new lambda.DockerImageFunction(this, "WorkerFunction", {
+      functionName: "photofighter-worker",
+      code: workerImage,
+      memorySize: 3008,
+      timeout: cdk.Duration.minutes(5),
+      architecture: lambda.Architecture.ARM_64,
+      environment: {
+        DYNAMODB_TABLE_USERS: usersTable.tableName,
+        DYNAMODB_TABLE_CHARACTERS: charactersTable.tableName,
+        S3_BUCKET_SPRITES: spritesBucket.bucketName,
+        AWS_REGION_NAME: this.region,
+        NUMBA_CACHE_DIR: "/tmp",
+        U2NET_HOME: "/tmp/.u2net",
+      },
+    });
+    cdk.Tags.of(workerFunction).add("name", "photofighter-worker");
+
+    charactersTable.grantReadWriteData(workerFunction);
+    spritesBucket.grantReadWrite(workerFunction);
+
     // Lambda 関数（FastAPI バックエンド）
     const apiFunction = new lambda.DockerImageFunction(this, "ApiFunction", {
       functionName: "photofighter-api",
-      code: lambda.DockerImageCode.fromImageAsset("../backend"),
-      memorySize: 512,
-      timeout: cdk.Duration.seconds(30),
+      code: backendImage,
+      memorySize: 1024,
+      timeout: cdk.Duration.seconds(29),
       architecture: lambda.Architecture.ARM_64,
       environment: {
         DYNAMODB_TABLE_USERS: usersTable.tableName,
@@ -103,21 +139,17 @@ export class PhotoFighterStack extends cdk.Stack {
         AWS_REGION_NAME: this.region,
         COGNITO_USER_POOL_ID: "REDACTED_USER_POOL_ID",
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+        ORIGIN_VERIFY_HEADER: originVerifySecret,
+        WORKER_FUNCTION_NAME: workerFunction.functionName,
       },
     });
     cdk.Tags.of(apiFunction).add("name", "photofighter-api");
 
-    // Lambda に DynamoDB / S3 / Bedrock アクセス権限を付与
+    // Lambda に DynamoDB / S3 / Worker invoke 権限を付与
     usersTable.grantReadWriteData(apiFunction);
     charactersTable.grantReadWriteData(apiFunction);
     spritesBucket.grantReadWrite(apiFunction);
-    apiFunction.addToRolePolicy(
-      new cdk.aws_iam.PolicyStatement({
-        effect: cdk.aws_iam.Effect.ALLOW,
-        actions: ["bedrock:InvokeModel"],
-        resources: ["*"],
-      })
-    );
+    workerFunction.grantInvoke(apiFunction);
 
     // Lambda Function URL
     const functionUrl = apiFunction.addFunctionUrl({
@@ -139,7 +171,13 @@ export class PhotoFighterStack extends cdk.Stack {
         },
         additionalBehaviors: {
           "/api/*": {
-            origin: new origins.FunctionUrlOrigin(functionUrl),
+            origin: new origins.FunctionUrlOrigin(functionUrl, {
+              customHeaders: {
+                "X-Origin-Verify": originVerifySecret,
+              },
+              readTimeout: cdk.Duration.seconds(60),
+              keepaliveTimeout: cdk.Duration.seconds(60),
+            }),
             viewerProtocolPolicy:
               cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
             cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
@@ -152,6 +190,12 @@ export class PhotoFighterStack extends cdk.Stack {
         errorResponses: [
           {
             httpStatus: 404,
+            responsePagePath: "/index.html",
+            responseHttpStatus: 200,
+            ttl: cdk.Duration.seconds(0),
+          },
+          {
+            httpStatus: 403,
             responsePagePath: "/index.html",
             responseHttpStatus: 200,
             ttl: cdk.Duration.seconds(0),

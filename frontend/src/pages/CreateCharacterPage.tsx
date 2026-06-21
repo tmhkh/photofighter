@@ -1,10 +1,19 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { generateCharacter, getCharacter } from "../services/api";
+
+const POLL_INTERVAL_MS = 3000;
+const POLL_TIMEOUT_MS = 4 * 60 * 1000; // 4分
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export default function CreateCharacterPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -23,24 +32,33 @@ export default function CreateCharacterPage() {
     if (!file) return;
     setLoading(true);
     setError("");
+    setStatusText("画像をアップロード中...");
     try {
-      const formData = new FormData();
-      formData.append("photo", file);
-      const token = localStorage.getItem("access_token");
-      const res = await fetch("/api/characters/generate", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "生成に失敗しました");
+      // 1. 生成開始（202 で処理中レコードが返る）
+      const created = await generateCharacter(file);
+
+      // 2. 完了までポーリング
+      setStatusText("キャラクターを生成中...");
+      const deadline = Date.now() + POLL_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        await sleep(POLL_INTERVAL_MS);
+        const current = await getCharacter(created.character_id);
+        if (current.status === "completed") {
+          navigate("/characters");
+          return;
+        }
+        if (current.status === "failed") {
+          throw new Error(
+            current.error_message || "キャラクター生成に失敗しました"
+          );
+        }
       }
-      navigate("/characters");
+      throw new Error("生成がタイムアウトしました。時間をおいて再度お試しください");
     } catch (err) {
       setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
       setLoading(false);
+      setStatusText("");
     }
   };
 
@@ -58,9 +76,9 @@ export default function CreateCharacterPage() {
           borderRadius: "12px",
           padding: "40px",
           textAlign: "center",
-          cursor: "pointer",
+          cursor: loading ? "default" : "pointer",
         }}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => !loading && fileInputRef.current?.click()}
       >
         {preview ? (
           <img src={preview} alt="プレビュー" style={{ maxWidth: "100%", maxHeight: "300px", borderRadius: "8px" }} />
@@ -73,10 +91,16 @@ export default function CreateCharacterPage() {
           accept="image/jpeg,image/png"
           onChange={handleFileChange}
           style={{ display: "none" }}
+          disabled={loading}
         />
       </div>
 
-      {error && <p style={{ color: "#ef5350", marginTop: "16px" }}>{error}</p>}
+      {statusText && (
+        <p style={{ color: "#4fc3f7", marginTop: "16px" }} role="status">
+          {statusText}
+        </p>
+      )}
+      {error && <p style={{ color: "#ef5350", marginTop: "16px" }} role="alert">{error}</p>}
 
       <button
         onClick={handleGenerate}
