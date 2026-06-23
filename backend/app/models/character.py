@@ -58,7 +58,5 @@ class CharacterRepository:
         """今月の生成回数を取得する."""
         characters = await self.list_by_user(user_id)
         current_month = datetime.now(UTC).strftime("%Y-%m")
-        count = sum(
-            1 for c in characters if c.get("created_at", "").startswith(current_month)
-        )
+        count = sum(1 for c in characters if c.get("created_at", "").startswith(current_month))
         return count

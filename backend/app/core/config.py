@@ -13,11 +13,9 @@ class Settings(BaseSettings):
     app_name: str = "PhotoFighter"
     debug: bool = False
 
-    # 認証
-    jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
-    refresh_token_expire_days: int = 7
+    # Cognito 認証 (共通認証基盤)
+    cognito_user_pool_id: str = ""
+    cognito_allowed_client_ids: list[str] = []
 
     # AWS
     aws_region: str = "ap-northeast-1"
@@ -32,7 +30,7 @@ class Settings(BaseSettings):
     monthly_generation_limit: int = 5
 
     # CORS
-    allowed_origins: list[str] = ["http://localhost:5173"]
+    allowed_origins: list[str] = ["http://localhost:5174"]
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

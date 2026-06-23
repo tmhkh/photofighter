@@ -24,13 +24,16 @@ class CharacterGeneratorService:
     def __init__(self) -> None:
         """サービスを初期化する."""
         self._bedrock = boto3.client(
-            "bedrock-runtime", region_name=settings.aws_region
+            "bedrock-runtime",
+            region_name=settings.aws_region,
         )
         self._s3 = boto3.client("s3", region_name=settings.aws_region)
         self._character_repo = CharacterRepository()
 
     async def generate(
-        self, image_bytes: bytes, user_id: str
+        self,
+        image_bytes: bytes,
+        user_id: str,
     ) -> CharacterResponse:
         """写真からキャラクターを生成する."""
         try:
@@ -57,10 +60,7 @@ class CharacterGeneratorService:
                 character_id=character["character_id"],
                 user_id=character["user_id"],
                 name=character["name"],
-                sprite_url=(
-                    f"https://{settings.s3_bucket_sprites}"
-                    f".s3.amazonaws.com/{s3_key}"
-                ),
+                sprite_url=(f"https://{settings.s3_bucket_sprites}.s3.amazonaws.com/{s3_key}"),
                 style=character["style"],
                 created_at=character["created_at"],
             )
@@ -93,7 +93,7 @@ class CharacterGeneratorService:
                     "height": 512,
                     "cfgScale": 7.0,
                 },
-            }
+            },
         )
 
         response = self._bedrock.invoke_model(

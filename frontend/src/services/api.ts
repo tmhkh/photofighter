@@ -1,14 +1,15 @@
 /**
  * API クライアント
+ *
+ * 認証トークンは共通認証基盤 (authClient) から取得する。
  */
+
+import { getToken, login, logout, isAuthenticated, handleCallback } from "./authClient";
 
 const BASE_URL = "/api";
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
-  const token = localStorage.getItem("access_token");
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const headers: Record<string, string> = {
     ...(options?.headers as Record<string, string>),
   };
@@ -20,6 +21,11 @@ async function request<T>(
   }
 
   const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    // 認証エラー時はログイン画面にリダイレクト
+    logout();
+    return Promise.reject(new Error("認証エラー"));
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `API Error: ${res.status}`);
@@ -27,37 +33,46 @@ async function request<T>(
   return res.json();
 }
 
-interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
+/**
+ * 認証サービス (共通認証基盤ベース)
+ */
 export const authService = {
-  async login(email: string, password: string): Promise<void> {
-    const data = await request<TokenResponse>("/auth/login", {
+  login,
+  logout,
+  isLoggedIn: isAuthenticated,
+  handleCallback,
+};
+
+/**
+ * キャラクター API
+ */
+export const characterApi = {
+  async getAll(): Promise<unknown[]> {
+    return request<unknown[]>("/characters");
+  },
+
+  async create(formData: FormData): Promise<unknown> {
+    return request<unknown>("/characters", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: formData,
     });
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
   },
 
-  async register(email: string, password: string): Promise<void> {
-    const data = await request<TokenResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-  },
-
-  logout(): void {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-  },
-
-  isLoggedIn(): boolean {
-    return !!localStorage.getItem("access_token");
+  async get(characterId: string): Promise<unknown> {
+    return request<unknown>(`/characters/${characterId}`);
   },
 };
+
+/**
+ * ゲーム API
+ */
+export const gameApi = {
+  async start(characterId: string, opponentId: string): Promise<unknown> {
+    return request<unknown>("/game/start", {
+      method: "POST",
+      body: JSON.stringify({ character_id: characterId, opponent_id: opponentId }),
+    });
+  },
+};
+
+export { request };

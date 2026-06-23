@@ -18,7 +18,7 @@ async def list_stages() -> list[StageResponse]:
             description="可愛いオニが待ち構える最初のステージ",
             enemy_type="oni",
             difficulty="normal",
-        )
+        ),
     ]
 
 

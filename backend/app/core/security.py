@@ -1,43 +1,64 @@
-"""認証・セキュリティユーティリティ."""
+"""認証・セキュリティユーティリティ (Cognito JWT 検証)."""
 
-from datetime import UTC, datetime, timedelta
+import time
+from typing import Any
 
+import httpx
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Cognito JWKS URL
+ISSUER = f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.cognito_user_pool_id}"
+JWKS_URL = f"{ISSUER}/.well-known/jwks.json"
+
+# JWKS キャッシュ (TTL: 1時間)
+_jwks_cache: dict[str, Any] = {"keys": None, "fetched_at": 0.0}
+_JWKS_CACHE_TTL = 3600
 
 
-def hash_password(password: str) -> str:
-    """パスワードを bcrypt でハッシュ化する."""
-    return pwd_context.hash(password)
+def _get_jwks_sync() -> dict[str, Any]:
+    """JWKS を同期的に取得 (キャッシュ付き)."""
+    now = time.time()
+    if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"]) < _JWKS_CACHE_TTL:
+        return _jwks_cache["keys"]
+
+    with httpx.Client() as client:
+        res = client.get(JWKS_URL)
+        res.raise_for_status()
+        jwks = res.json()
+
+    _jwks_cache["keys"] = jwks
+    _jwks_cache["fetched_at"] = now
+    return jwks
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """パスワードを検証する."""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def create_access_token(subject: str) -> str:
-    """アクセストークンを生成する."""
-    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "exp": expire, "type": "access"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-
-
-def create_refresh_token(subject: str) -> str:
-    """リフレッシュトークンを生成する."""
-    expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
-    payload = {"sub": subject, "exp": expire, "type": "refresh"}
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-
-
-def decode_token(token: str) -> dict | None:
-    """トークンをデコードして検証する."""
+def decode_token(token: str) -> dict[str, Any] | None:
+    """Cognito IDトークンをデコードして検証する."""
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        jwks = _get_jwks_sync()
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+
+        # 対応する公開鍵を検索
+        rsa_key: dict[str, Any] | None = None
+        for key in jwks.get("keys", []):
+            if key["kid"] == kid:
+                rsa_key = key
+                break
+
+        if not rsa_key:
+            return None
+
+        # JWT 検証
+        payload: dict[str, Any] = jwt.decode(
+            token,
+            rsa_key,
+            algorithms=["RS256"],
+            audience=settings.cognito_allowed_client_ids,
+            issuer=ISSUER,
+        )
         return payload
+
     except JWTError:
         return None
