@@ -40,7 +40,10 @@ class CharacterGeneratorService:
         return upload_key
 
     async def process_from_upload(
-        self, character_id: str, user_id: str, upload_key: str
+        self,
+        character_id: str,
+        user_id: str,
+        upload_key: str,
     ) -> None:
         """S3 の元画像からキャラクター生成を実行し、結果を DB に反映する.
 
@@ -51,7 +54,8 @@ class CharacterGeneratorService:
         try:
             # Step 0: 元画像を S3 から取得
             obj = self._s3.get_object(
-                Bucket=settings.s3_bucket_sprites, Key=upload_key
+                Bucket=settings.s3_bucket_sprites,
+                Key=upload_key,
             )
             image_bytes = obj["Body"].read()
 
@@ -112,7 +116,10 @@ class CharacterGeneratorService:
         return buffer.getvalue()
 
     def _create_body_template(
-        self, action: str, width: int = 128, height: int = 192
+        self,
+        action: str,
+        width: int = 128,
+        height: int = 192,
     ) -> Image.Image:
         """アクション別の体テンプレート画像をアセットファイルから読み込む.
 
@@ -144,7 +151,10 @@ class CharacterGeneratorService:
         return self._create_body_template_fallback(action, width, height)
 
     def _create_body_template_fallback(
-        self, action: str, width: int = 128, height: int = 192
+        self,
+        action: str,
+        width: int = 128,
+        height: int = 192,
     ) -> Image.Image:
         """アセットファイルがない場合のフォールバック（Pillow で簡易生成）."""
         from PIL import ImageDraw
@@ -171,7 +181,10 @@ class CharacterGeneratorService:
         return canvas
 
     def _composite_face_on_body(
-        self, face: Image.Image, body: Image.Image, action: str = "idle"
+        self,
+        face: Image.Image,
+        body: Image.Image,
+        action: str = "idle",
     ) -> Image.Image:
         """顔画像を体テンプレートの頭部位置に合成する.
 
@@ -181,7 +194,8 @@ class CharacterGeneratorService:
         # 顔を頭部サイズにリサイズ（フレーム幅の40%程度）
         head_size = 48
         face_resized = face.resize(
-            (head_size, head_size), Image.Resampling.LANCZOS
+            (head_size, head_size),
+            Image.Resampling.LANCZOS,
         )
 
         # 体画像の「最初の不透明ピクセル」のY座標を検出して首位置を特定
@@ -221,7 +235,8 @@ class CharacterGeneratorService:
         """元画像を S3 から削除する."""
         try:
             self._s3.delete_object(
-                Bucket=settings.s3_bucket_sprites, Key=upload_key
+                Bucket=settings.s3_bucket_sprites,
+                Key=upload_key,
             )
         except Exception:  # noqa: BLE001, S110
             # 削除失敗してもライフサイクルで失効するため握りつぶす

@@ -9,9 +9,7 @@ from jose import JWTError, jwt
 from app.core.config import settings
 
 # Cognito JWKS URL
-ISSUER = (
-    f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.cognito_user_pool_id}"
-)
+ISSUER = f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.cognito_user_pool_id}"
 JWKS_URL = f"{ISSUER}/.well-known/jwks.json"
 
 # JWKS キャッシュ (TTL: 1時間)

@@ -88,7 +88,6 @@ class CharacterRepository:
         count = sum(
             1
             for c in characters
-            if c.get("created_at", "").startswith(current_month)
-            and c.get("status") != "failed"
+            if c.get("created_at", "").startswith(current_month) and c.get("status") != "failed"
         )
         return count

@@ -17,7 +17,9 @@ class OriginVerifyMiddleware(BaseHTTPMiddleware):
     """CloudFront 経由のリクエストのみ許可するミドルウェア."""
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         """リクエストの X-Origin-Verify ヘッダーを検証する."""
         # 検証用シークレットが未設定の場合はスキップ（ローカル開発時）
