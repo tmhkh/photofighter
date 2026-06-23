@@ -9,7 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.30.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",
-    "PyJWT[crypto]>=2.9.0",
+    "python-jose[cryptography]>=3.3.0",
     "python-multipart>=0.0.9",
     "boto3>=1.35.0",
     "rembg[cpu]>=2.0.59",
@@ -34,7 +34,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "A", "COM", "C4", "T20"]
-ignore = ["ANN101", "ANN102"]
+ignore = ["ANN101", "ANN102", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

@@ -1,54 +1,66 @@
-"""Cognito JWT トークン検証ユーティリティ."""
+"""Cognito JWT トークン検証ユーティリティ (python-jose)."""
 
-import json
-from functools import lru_cache
+import time
 from typing import Any
 
-import jwt
-from jwt import PyJWKClient
+import httpx
+from jose import JWTError, jwt
 
 from app.core.config import settings
 
+# Cognito JWKS URL
+ISSUER = (
+    f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.cognito_user_pool_id}"
+)
+JWKS_URL = f"{ISSUER}/.well-known/jwks.json"
 
-@lru_cache(maxsize=1)
-def _get_jwk_client() -> PyJWKClient:
-    """Cognito JWKS エンドポイントの JWK クライアントを取得する."""
-    jwks_url = (
-        f"https://cognito-idp.{settings.aws_region}.amazonaws.com"
-        f"/{settings.cognito_user_pool_id}/.well-known/jwks.json"
-    )
-    return PyJWKClient(jwks_url)
+# JWKS キャッシュ (TTL: 1時間)
+_jwks_cache: dict[str, Any] = {"keys": None, "fetched_at": 0.0}
+_JWKS_CACHE_TTL = 3600
 
 
-def decode_cognito_token(token: str) -> dict[str, Any] | None:
-    """Cognito JWT トークンを検証・デコードする.
+def _get_jwks_sync() -> dict[str, Any]:
+    """JWKS を同期的に取得 (キャッシュ付き)."""
+    now = time.time()
+    if _jwks_cache["keys"] and (now - _jwks_cache["fetched_at"]) < _JWKS_CACHE_TTL:
+        return _jwks_cache["keys"]
 
-    Returns:
-        検証済みペイロード。無効な場合は None。
-    """
+    with httpx.Client() as client:
+        res = client.get(JWKS_URL)
+        res.raise_for_status()
+        jwks = res.json()
+
+    _jwks_cache["keys"] = jwks
+    _jwks_cache["fetched_at"] = now
+    return jwks
+
+
+def decode_token(token: str) -> dict[str, Any] | None:
+    """Cognito IDトークンをデコードして検証する."""
     try:
-        jwk_client = _get_jwk_client()
-        signing_key = jwk_client.get_signing_key_from_jwt(token)
+        jwks = _get_jwks_sync()
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
 
-        payload = jwt.decode(
-            token,
-            signing_key.key,
-            algorithms=["RS256"],
-            issuer=(
-                f"https://cognito-idp.{settings.aws_region}.amazonaws.com"
-                f"/{settings.cognito_user_pool_id}"
-            ),
-            options={
-                "verify_aud": False,  # Cognito access token には aud がない
-                "verify_exp": True,
-            },
-        )
+        # 対応する公開鍵を検索
+        rsa_key: dict[str, Any] | None = None
+        for key in jwks.get("keys", []):
+            if key["kid"] == kid:
+                rsa_key = key
+                break
 
-        # client_id の検証（access token は client_id、id token は aud）
-        client_id = payload.get("client_id") or payload.get("aud")
-        if client_id != settings.cognito_client_id:
+        if not rsa_key:
             return None
 
+        # JWT 検証
+        payload: dict[str, Any] = jwt.decode(
+            token,
+            rsa_key,
+            algorithms=["RS256"],
+            audience=settings.cognito_allowed_client_ids,
+            issuer=ISSUER,
+        )
         return payload
-    except (jwt.InvalidTokenError, jwt.PyJWKClientError):
+
+    except JWTError:
         return None

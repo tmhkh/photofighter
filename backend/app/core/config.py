@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     app_name: str = "PhotoFighter"
     debug: bool = False
 
-    # Cognito 認証
-    cognito_user_pool_id: str = "ap-northeast-1_VNCSv95Dm"
-    cognito_client_id: str = ""
+    # Cognito 認証 (共通認証基盤)
+    cognito_user_pool_id: str = ""
+    cognito_allowed_client_ids: list[str] = []
 
     # AWS
     aws_region: str = "ap-northeast-1"
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     monthly_generation_limit: int = 5
 
     # CORS
-    allowed_origins: list[str] = ["http://localhost:5173"]
+    allowed_origins: list[str] = ["http://localhost:5174"]
 
     # CloudFront オリジン検証
     origin_verify_header: str = ""

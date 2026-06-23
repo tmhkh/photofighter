@@ -1,10 +1,10 @@
 /**
  * API クライアント
  *
- * Cognito アクセストークンを付与して /api を呼び出す。
+ * 認証トークンは共通認証基盤 (authClient) から取得する。
  */
 
-import { getAccessToken } from "./auth";
+import { getToken, logout } from "./authClient";
 
 export interface Character {
   character_id: string;
@@ -18,7 +18,7 @@ export interface Character {
 }
 
 async function authHeaders(): Promise<HeadersInit> {
-  const token = await getAccessToken();
+  const token = getToken();
   if (!token) {
     throw new Error("ログインが必要です");
   }
@@ -26,6 +26,10 @@ async function authHeaders(): Promise<HeadersInit> {
 }
 
 async function parseError(res: Response): Promise<never> {
+  if (res.status === 401) {
+    logout();
+    throw new Error("認証エラー: 再ログインしてください");
+  }
   let detail = "リクエストに失敗しました";
   try {
     const data = await res.json();
@@ -37,9 +41,7 @@ async function parseError(res: Response): Promise<never> {
 }
 
 /** キャラクター生成を開始する（202 で処理中のレコードを返す） */
-export async function generateCharacter(
-  file: File
-): Promise<Character> {
+export async function generateCharacter(file: File): Promise<Character> {
   const formData = new FormData();
   formData.append("photo", file);
 
