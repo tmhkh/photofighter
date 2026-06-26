@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Phaser from "phaser";
 import { getCharacter } from "../services/api";
-import { getAccessToken } from "../services/auth";
+import { getToken } from "../services/authClient";
 import { createBattleScene } from "../game/scenes/BattleScene";
 import { createBootScene } from "../game/scenes/BootScene";
 import { ResultScene } from "../game/scenes/ResultScene";
@@ -38,7 +38,7 @@ export default function GamePage() {
         }
 
         // 認証付きで画像を取得し、blob URL に変換
-        const token = await getAccessToken();
+        const token = getToken();
         const imageRes = await fetch(`/api/characters/${characterId}/image`, {
           headers: { Authorization: `Bearer ${token}` },
         });

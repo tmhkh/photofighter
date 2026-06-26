@@ -4,7 +4,7 @@
  * Cognito アクセストークンを付与して /api を呼び出す。
  */
 
-import { getAccessToken } from "./auth";
+import { getToken } from "./authClient";
 
 export interface Character {
   character_id: string;
@@ -18,7 +18,7 @@ export interface Character {
 }
 
 async function authHeaders(): Promise<HeadersInit> {
-  const token = await getAccessToken();
+  const token = getToken();
   if (!token) {
     throw new Error("ログインが必要です");
   }

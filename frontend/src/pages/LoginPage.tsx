@@ -1,65 +1,72 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { signIn } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
 
+/**
+ * ログインページ
+ *
+ * パスキー認証用: ボタンクリックで Cognito Managed Login にリダイレクト
+ */
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const { login, isLoading, error } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      await signIn(username, password);
-      navigate("/characters");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "ログインに失敗しました");
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = async () => {
+    await login();
   };
 
   return (
-    <div style={{ padding: "40px 20px", maxWidth: "400px", margin: "0 auto" }}>
-      <h2>ログイン</h2>
-      <form onSubmit={handleSubmit} style={{ marginTop: "24px" }}>
-        <div style={{ marginBottom: "16px" }}>
-          <input
-            type="text"
-            placeholder="アカウント名"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-            aria-label="アカウント名"
-            style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
-          />
-        </div>
-        <div style={{ marginBottom: "16px" }}>
-          <input
-            type="password"
-            placeholder="パスワード"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            aria-label="パスワード"
-            style={{ width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #444", background: "#2a2a4a", color: "#eee" }}
-          />
-        </div>
-        {error && <p style={{ color: "#ef5350", marginBottom: "16px" }} role="alert">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ width: "100%", background: "#4fc3f7", color: "#000" }}
-        >
-          {loading ? "ログイン中..." : "ログイン"}
-        </button>
-      </form>
+    <div style={styles.container}>
+      <h1 style={styles.title}>PhotoFighter</h1>
+      <p style={styles.subtitle}>パスキーでログインしてください</p>
+      {error && (
+        <p style={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+      <button
+        onClick={handleLogin}
+        style={styles.button}
+        disabled={isLoading}
+        aria-label="ログイン"
+      >
+        {isLoading ? "リダイレクト中..." : "ログイン"}
+      </button>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "100vh",
+    padding: "24px",
+    gap: "16px",
+  },
+  title: {
+    fontSize: "32px",
+    fontWeight: "bold",
+    marginBottom: "8px",
+  },
+  subtitle: {
+    fontSize: "16px",
+    color: "#aaa",
+    marginBottom: "24px",
+  },
+  error: {
+    color: "#ef5350",
+    fontSize: "14px",
+    margin: 0,
+    textAlign: "center",
+  },
+  button: {
+    padding: "16px 48px",
+    fontSize: "18px",
+    fontWeight: "bold",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "#4fc3f7",
+    color: "#000",
+    cursor: "pointer",
+  },
+};
