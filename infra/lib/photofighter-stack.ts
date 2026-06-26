@@ -15,7 +15,7 @@ export class PhotoFighterStack extends cdk.Stack {
     const userPool = cognito.UserPool.fromUserPoolId(
       this,
       "SharedUserPool",
-      "ap-northeast-1_VNCSv95Dm"
+      "ap-northeast-1_Vfl8gaLkJ"
     );
 
     // photofighter 用アプリクライアント
@@ -110,7 +110,7 @@ export class PhotoFighterStack extends cdk.Stack {
       code: workerImage,
       memorySize: 3008,
       timeout: cdk.Duration.minutes(5),
-      architecture: lambda.Architecture.ARM_64,
+      architecture: lambda.Architecture.X86_64,
       environment: {
         DYNAMODB_TABLE_USERS: usersTable.tableName,
         DYNAMODB_TABLE_CHARACTERS: charactersTable.tableName,
@@ -131,14 +131,14 @@ export class PhotoFighterStack extends cdk.Stack {
       code: backendImage,
       memorySize: 1024,
       timeout: cdk.Duration.seconds(29),
-      architecture: lambda.Architecture.ARM_64,
+      architecture: lambda.Architecture.X86_64,
       environment: {
         DYNAMODB_TABLE_USERS: usersTable.tableName,
         DYNAMODB_TABLE_CHARACTERS: charactersTable.tableName,
         S3_BUCKET_SPRITES: spritesBucket.bucketName,
         AWS_REGION_NAME: this.region,
-        COGNITO_USER_POOL_ID: "ap-northeast-1_VNCSv95Dm",
-        COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+        COGNITO_USER_POOL_ID: "ap-northeast-1_Vfl8gaLkJ",
+        COGNITO_CLIENT_ID: "3p8vu8l8baooquhgk5f7nrdu5f",
         ORIGIN_VERIFY_HEADER: originVerifySecret,
         WORKER_FUNCTION_NAME: workerFunction.functionName,
       },

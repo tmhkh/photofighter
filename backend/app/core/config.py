@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Cognito 認証
-    cognito_user_pool_id: str = "ap-northeast-1_VNCSv95Dm"
+    cognito_user_pool_id: str = "ap-northeast-1_Vfl8gaLkJ"
     cognito_client_id: str = ""
 
     # AWS
