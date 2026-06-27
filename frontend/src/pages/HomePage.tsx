@@ -13,11 +13,6 @@ export default function HomePage() {
             ログイン
           </button>
         </Link>
-        <Link to="/register">
-          <button style={{ background: "#66bb6a", color: "#000", width: "200px" }}>
-            新規登録
-          </button>
-        </Link>
       </div>
     </div>
   );

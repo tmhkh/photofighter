@@ -13,11 +13,9 @@ class Settings(BaseSettings):
     app_name: str = "PhotoFighter"
     debug: bool = False
 
-    # 認証
-    jwt_secret_key: str = "CHANGE_ME_IN_PRODUCTION"
-    jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
-    refresh_token_expire_days: int = 7
+    # Cognito 認証
+    cognito_user_pool_id: str = "REDACTED_USER_POOL_ID"
+    cognito_client_id: str = ""
 
     # AWS
     aws_region: str = "ap-northeast-1"
@@ -25,14 +23,17 @@ class Settings(BaseSettings):
     dynamodb_table_characters: str = "photofighter-characters"
     s3_bucket_sprites: str = "photofighter-sprites"
 
-    # Bedrock
-    bedrock_model_id: str = "amazon.nova-canvas-v1:0"
+    # 非同期 Worker Lambda
+    worker_function_name: str = "photofighter-worker"
 
     # キャラクター生成制限
     monthly_generation_limit: int = 5
 
     # CORS
     allowed_origins: list[str] = ["http://localhost:5173"]
+
+    # CloudFront オリジン検証
+    origin_verify_header: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
