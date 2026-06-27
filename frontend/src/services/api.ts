@@ -1,63 +1,80 @@
 /**
  * API クライアント
+ *
+ * Cognito アクセストークンを付与して /api を呼び出す。
  */
 
-const BASE_URL = "/api";
+import { getToken } from "./authClient";
 
-async function request<T>(
-  path: string,
-  options?: RequestInit
-): Promise<T> {
-  const token = localStorage.getItem("access_token");
-  const headers: Record<string, string> = {
-    ...(options?.headers as Record<string, string>),
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  if (!headers["Content-Type"] && !(options?.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
+export interface Character {
+  character_id: string;
+  user_id: string;
+  name: string;
+  sprite_url: string;
+  style: string;
+  status: "processing" | "completed" | "failed";
+  error_message: string;
+  created_at: string;
+}
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `API Error: ${res.status}`);
+async function authHeaders(): Promise<HeadersInit> {
+  const token = getToken();
+  if (!token) {
+    throw new Error("ログインが必要です");
   }
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function parseError(res: Response): Promise<never> {
+  let detail = "リクエストに失敗しました";
+  try {
+    const data = await res.json();
+    if (data?.detail) detail = data.detail;
+  } catch {
+    // JSON でない場合はデフォルトメッセージ
+  }
+  throw new Error(detail);
+}
+
+/** キャラクター生成を開始する（202 で処理中のレコードを返す） */
+export async function generateCharacter(
+  file: File
+): Promise<Character> {
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const res = await fetch("/api/characters/generate", {
+    method: "POST",
+    headers: await authHeaders(),
+    body: formData,
+  });
+  if (!res.ok) return parseError(res);
   return res.json();
 }
 
-interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
+/** キャラクター詳細を取得する（生成状況のポーリングに使用） */
+export async function getCharacter(characterId: string): Promise<Character> {
+  const res = await fetch(`/api/characters/${characterId}`, {
+    headers: await authHeaders(),
+  });
+  if (!res.ok) return parseError(res);
+  return res.json();
 }
 
-export const authService = {
-  async login(email: string, password: string): Promise<void> {
-    const data = await request<TokenResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-  },
+/** 自分のキャラクター一覧を取得する */
+export async function listCharacters(): Promise<Character[]> {
+  const res = await fetch("/api/characters", {
+    headers: await authHeaders(),
+  });
+  if (!res.ok) return parseError(res);
+  return res.json();
+}
 
-  async register(email: string, password: string): Promise<void> {
-    const data = await request<TokenResponse>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-  },
-
-  logout(): void {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-  },
-
-  isLoggedIn(): boolean {
-    return !!localStorage.getItem("access_token");
-  },
-};
+/** キャラクターを削除する */
+export async function deleteCharacter(characterId: string): Promise<void> {
+  const res = await fetch(`/api/characters/${characterId}`, {
+    method: "DELETE",
+    headers: await authHeaders(),
+  });
+  if (!res.ok) return parseError(res);
+}

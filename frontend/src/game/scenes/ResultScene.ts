@@ -12,12 +12,13 @@ export class ResultScene extends Phaser.Scene {
     const { width, height } = this.cameras.main;
 
     const isWin = data.result === "win";
-    this.cameras.main.setBackgroundColor(isWin ? "#1b5e20" : "#b71c1c");
+    // 背景色はバトル画面と同じ落ち着いた色を維持
+    this.cameras.main.setBackgroundColor("#2d1b4e");
 
     this.add
       .text(width / 2, height / 3, isWin ? "YOU WIN!" : "YOU LOSE...", {
-        fontSize: "48px",
-        color: "#fff",
+        fontSize: "56px",
+        color: isWin ? "#66bb6a" : "#ef5350",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
