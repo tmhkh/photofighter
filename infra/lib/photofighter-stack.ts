@@ -5,13 +5,31 @@ import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as targets from "aws-cdk-lib/aws-route53-targets";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 
 export class PhotoFighterStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Cognito User Pool（hanashite-tsukurun と共有）
+    // ========================================
+    // カスタムドメイン設定 (photofighter.kurashi.dev)
+    // ========================================
+    const domainName = "kurashi.dev";
+    const subDomain = `photofighter.${domainName}`;
+
+    const hostedZone = route53.HostedZone.fromLookup(this, "KurashiDevZone", {
+      domainName,
+    });
+
+    const certificateArn = this.node.tryGetContext("certificateArn")
+      || ssm.StringParameter.valueForStringParameter(this, "/kurashi-dev/certificate-arn");
+    const certificate = acm.Certificate.fromCertificateArn(this, "WildcardCert", certificateArn);
+
+    // Cognito User Pool（共通認証基盤）
     const userPool = cognito.UserPool.fromUserPoolId(
       this,
       "SharedUserPool",
@@ -162,6 +180,8 @@ export class PhotoFighterStack extends cdk.Stack {
       this,
       "FrontendDistribution",
       {
+        domainNames: [subDomain],
+        certificate,
         defaultBehavior: {
           origin:
             origins.S3BucketOrigin.withOriginAccessControl(frontendBucket),
@@ -205,9 +225,17 @@ export class PhotoFighterStack extends cdk.Stack {
     );
     cdk.Tags.of(distribution).add("name", "photofighter-cdn");
 
+    // Route 53 A レコード (photofighter.kurashi.dev → CloudFront)
+    new route53.ARecord(this, "CloudFrontAliasRecord", {
+      zone: hostedZone,
+      recordName: "photofighter",
+      target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
+      comment: "photofighter.kurashi.dev → CloudFront",
+    });
+
     // 出力
     new cdk.CfnOutput(this, "FrontendUrl", {
-      value: `https://${distribution.distributionDomainName}`,
+      value: `https://${subDomain}`,
     });
     new cdk.CfnOutput(this, "SpritesBucketName", {
       value: spritesBucket.bucketName,
