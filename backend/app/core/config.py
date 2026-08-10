@@ -14,11 +14,11 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Cognito 認証
-    cognito_user_pool_id: str = "REDACTED_USER_POOL_ID"
+    cognito_user_pool_id: str = ""
     cognito_client_id: str = ""
 
     # AWS
-    aws_region: str = "ap-northeast-1"
+    aws_region: str = ""
     dynamodb_table_users: str = "photofighter-users"
     dynamodb_table_characters: str = "photofighter-characters"
     s3_bucket_sprites: str = "photofighter-sprites"

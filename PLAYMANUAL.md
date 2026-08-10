@@ -54,4 +54,4 @@
 
 ## URL
 
-- フロントエンド: https://REDACTED_CLOUDFRONT_DOMAIN
+- フロントエンド: https://photofighter.<DOMAIN_NAME> (環境変数 DOMAIN_NAME で設定)

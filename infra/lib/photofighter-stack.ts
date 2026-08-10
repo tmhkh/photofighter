@@ -4,7 +4,6 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as targets from "aws-cdk-lib/aws-route53-targets";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
@@ -16,9 +15,9 @@ export class PhotoFighterStack extends cdk.Stack {
     super(scope, id, props);
 
     // ========================================
-    // カスタムドメイン設定 (photofighter.kurashi.dev)
+    // カスタムドメイン設定 (photofighter.<domainName>)
     // ========================================
-    const domainName = "kurashi.dev";
+    const domainName = this.node.tryGetContext("domainName") || process.env.DOMAIN_NAME || "";
     const subDomain = `photofighter.${domainName}`;
 
     const hostedZone = route53.HostedZone.fromLookup(this, "KurashiDevZone", {
@@ -29,31 +28,15 @@ export class PhotoFighterStack extends cdk.Stack {
       || ssm.StringParameter.valueForStringParameter(this, "/kurashi-dev/certificate-arn");
     const certificate = acm.Certificate.fromCertificateArn(this, "WildcardCert", certificateArn);
 
-    // Cognito User Pool（共通認証基盤）
-    const userPool = cognito.UserPool.fromUserPoolId(
-      this,
-      "SharedUserPool",
-      "REDACTED_USER_POOL_ID"
+    // Cognito User Pool（共通認証基盤から参照）
+    const userPoolId = ssm.StringParameter.valueForStringParameter(
+      this, '/auth-platform/user-pool-id'
     );
 
-    // photofighter 用アプリクライアント
-    const userPoolClient = new cognito.UserPoolClient(
-      this,
-      "PhotoFighterClient",
-      {
-        userPool,
-        userPoolClientName: "photofighter",
-        authFlows: {
-          userPassword: true,
-          userSrp: true,
-        },
-        generateSecret: false,
-        accessTokenValidity: cdk.Duration.hours(1),
-        idTokenValidity: cdk.Duration.hours(1),
-        refreshTokenValidity: cdk.Duration.days(7),
-      }
+    // App Client ID は AuthPlatformStack で作成済みのものを SSM 経由で参照
+    const cognitoClientId = ssm.StringParameter.valueForStringParameter(
+      this, '/auth-platform/photofighter-client-id'
     );
-    cdk.Tags.of(userPoolClient).add("name", "photofighter-cognito-client");
 
     // DynamoDB テーブル
     const usersTable = new dynamodb.Table(this, "UsersTable", {
@@ -155,8 +138,8 @@ export class PhotoFighterStack extends cdk.Stack {
         DYNAMODB_TABLE_CHARACTERS: charactersTable.tableName,
         S3_BUCKET_SPRITES: spritesBucket.bucketName,
         AWS_REGION_NAME: this.region,
-        COGNITO_USER_POOL_ID: "REDACTED_USER_POOL_ID",
-        COGNITO_CLIENT_ID: "REDACTED_CLIENT_ID",
+        COGNITO_USER_POOL_ID: userPoolId,
+        COGNITO_CLIENT_ID: cognitoClientId,
         ORIGIN_VERIFY_HEADER: originVerifySecret,
         WORKER_FUNCTION_NAME: workerFunction.functionName,
       },
@@ -225,12 +208,12 @@ export class PhotoFighterStack extends cdk.Stack {
     );
     cdk.Tags.of(distribution).add("name", "photofighter-cdn");
 
-    // Route 53 A レコード (photofighter.kurashi.dev → CloudFront)
+    // Route 53 A レコード (photofighter.<domainName> → CloudFront)
     new route53.ARecord(this, "CloudFrontAliasRecord", {
       zone: hostedZone,
       recordName: "photofighter",
       target: route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution)),
-      comment: "photofighter.kurashi.dev → CloudFront",
+      comment: `photofighter.${domainName} → CloudFront`,
     });
 
     // 出力
@@ -244,10 +227,10 @@ export class PhotoFighterStack extends cdk.Stack {
       value: functionUrl.url,
     });
     new cdk.CfnOutput(this, "CognitoUserPoolId", {
-      value: "REDACTED_USER_POOL_ID",
+      value: userPoolId,
     });
     new cdk.CfnOutput(this, "CognitoClientId", {
-      value: userPoolClient.userPoolClientId,
+      value: cognitoClientId,
     });
   }
 }

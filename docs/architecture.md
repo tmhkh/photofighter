@@ -7,7 +7,7 @@ graph TB
     end
 
     subgraph CloudFront["Amazon CloudFront"]
-        CF["CloudFront Distribution<br/>REDACTED_CLOUDFRONT_DOMAIN"]
+        CF["CloudFront Distribution<br/>(カスタムドメインで配信)"]
     end
 
     subgraph S3["Amazon S3"]
@@ -20,7 +20,7 @@ graph TB
     end
 
     subgraph Auth["Amazon Cognito"]
-        UserPool["User Pool<br/>REDACTED_USER_POOL_ID<br/>(hanashite-tsukurun と共有)"]
+        UserPool["User Pool<br/>(共通認証基盤 / SSM 参照)<br/>(hanashite-tsukurun と共有)"]
         AppClient["App Client<br/>photofighter"]
     end
 
@@ -77,7 +77,7 @@ graph TB
 | Lambda | photofighter-api | FastAPI バックエンド (Docker, ARM64, 1536MB) |
 | DynamoDB | photofighter-users | ユーザー情報テーブル |
 | DynamoDB | photofighter-characters | キャラクター情報テーブル (GSI: user-id-index) |
-| Cognito | REDACTED_USER_POOL_ID | ユーザー認証 (hanashite-tsukurun と共有) |
+| Cognito | (共通認証基盤 User Pool) | ユーザー認証 (hanashite-tsukurun と共有) |
 | Bedrock | InvokeModel | AI による画像生成 |
 
 ## アクセスパターン
