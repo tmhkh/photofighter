@@ -45,7 +45,6 @@ export class PhotoFighterStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    cdk.Tags.of(usersTable).add("name", "photofighter-users");
 
     const charactersTable = new dynamodb.Table(this, "CharactersTable", {
       tableName: "photofighter-characters",
@@ -56,7 +55,6 @@ export class PhotoFighterStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
-    cdk.Tags.of(charactersTable).add("name", "photofighter-characters");
 
     charactersTable.addGlobalSecondaryIndex({
       indexName: "user-id-index",
@@ -84,7 +82,6 @@ export class PhotoFighterStack extends cdk.Stack {
         },
       ],
     });
-    cdk.Tags.of(spritesBucket).add("name", "photofighter-sprites");
 
     // フロントエンド配信用 S3
     const frontendBucket = new s3.Bucket(this, "FrontendBucket", {
@@ -94,7 +91,6 @@ export class PhotoFighterStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
-    cdk.Tags.of(frontendBucket).add("name", "photofighter-frontend");
 
     // CloudFront → Lambda オリジン検証用シークレット
     const originVerifySecret = "pf-origin-" + this.account + "-x7k9m2";
@@ -121,7 +117,6 @@ export class PhotoFighterStack extends cdk.Stack {
         U2NET_HOME: "/tmp/.u2net",
       },
     });
-    cdk.Tags.of(workerFunction).add("name", "photofighter-worker");
 
     charactersTable.grantReadWriteData(workerFunction);
     spritesBucket.grantReadWrite(workerFunction);
@@ -144,7 +139,6 @@ export class PhotoFighterStack extends cdk.Stack {
         WORKER_FUNCTION_NAME: workerFunction.functionName,
       },
     });
-    cdk.Tags.of(apiFunction).add("name", "photofighter-api");
 
     // Lambda に DynamoDB / S3 / Worker invoke 権限を付与
     usersTable.grantReadWriteData(apiFunction);
@@ -156,7 +150,6 @@ export class PhotoFighterStack extends cdk.Stack {
     const functionUrl = apiFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
     });
-    cdk.Tags.of(apiFunction).add("name", "photofighter-api");
 
     // CloudFront
     const distribution = new cloudfront.Distribution(
@@ -206,7 +199,6 @@ export class PhotoFighterStack extends cdk.Stack {
         ],
       }
     );
-    cdk.Tags.of(distribution).add("name", "photofighter-cdn");
 
     // Route 53 A レコード (photofighter.<domainName> → CloudFront)
     new route53.ARecord(this, "CloudFrontAliasRecord", {
